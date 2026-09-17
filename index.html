@@ -1,0 +1,1334 @@
+!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Barbería - Sistema de Reservas</title>
+    
+    <!-- METADATOS PWA Y MANIFIESTO DINÁMICO -->
+    <meta name="theme-color" content="#030712">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" id="pwa-apple-icon" href="https://i.imgur.com/QWIO228.png">
+    <link rel="manifest" id="pwa-manifest">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-body: #030712;
+            --card-bg: rgba(17, 24, 39, 0.8);
+            --card-bg-solid: #111827;
+            --accent: #f59e0b;
+            --accent-glow: rgba(245, 158, 11, 0.3);
+            --text-main: #f9fafb;
+            --text-sub: #9ca3af;
+            --border-light: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(245, 158, 11, 0.45);
+            --success: #10b981;
+            --danger: #ef4444;
+            --info: #38bdf8;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        body { 
+            background-color: var(--bg-body); 
+            background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, var(--bg-body) 70%);
+            color: var(--text-main); 
+            display: flex; 
+            justify-content: center; 
+            min-height: 100vh; 
+            padding: 12px; 
+        }
+
+        .app-container { 
+            width: 100%; 
+            max-width: 420px; 
+            background: rgba(10, 15, 29, 0.85); 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 28px; 
+            overflow: hidden; 
+            border: 1px solid var(--border-light); 
+            display: flex; 
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            min-height: 600px;
+        }
+
+        .top-nav { 
+            background: rgba(10, 15, 29, 0.8);
+            backdrop-filter: blur(12px);
+            padding: 14px 18px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 1px solid var(--border-light); 
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1.5px solid var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+            background: #111827;
+        }
+
+        .brand-title {
+            font-weight: 800;
+            font-size: 0.88rem;
+            letter-spacing: 1px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(3, 7, 18, 0.8);
+            padding: 4px;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+        }
+
+        .tab-btn { 
+            background: transparent; 
+            border: none; 
+            color: var(--text-sub); 
+            padding: 6px 14px; 
+            border-radius: 16px; 
+            font-size: 0.78rem;
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn.active { 
+            background: var(--accent); 
+            color: #000; 
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .header-brand { 
+            padding: 16px 20px 8px 20px; 
+            text-align: center; 
+        }
+
+        .header-brand h1 { 
+            color: var(--text-main); 
+            font-size: 1.3rem; 
+            font-weight: 900;
+            letter-spacing: -0.5px;
+        }
+
+        .header-brand p { 
+            color: var(--text-sub); 
+            font-size: 0.78rem; 
+            margin-top: 3px; 
+            font-weight: 500;
+        }
+
+        /* BARRA DE PROGRESO POR PASOS */
+        .step-progress-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 24px 4px 24px;
+            position: relative;
+        }
+        .step-progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 24px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: var(--border-light);
+            z-index: 1;
+        }
+        .step-progress-fill {
+            position: absolute;
+            top: 24px;
+            left: 40px;
+            height: 2px;
+            background: var(--accent);
+            z-index: 1;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .step-node {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #111827;
+            border: 2px solid var(--border-light);
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+        .step-node.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+        .step-node.completed {
+            border-color: var(--accent);
+            background: #111827;
+            color: var(--accent);
+        }
+
+        .content { padding: 0 16px 24px 16px; flex-grow: 1; display: flex; flex-direction: column; }
+
+        .section-title { 
+            font-size: 0.8rem; 
+            color: var(--accent); 
+            margin: 16px 0 12px 0; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 1.2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .selectable-item {
+            width: 100%; 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-light); 
+            border-radius: 16px; 
+            padding: 14px 16px; 
+            margin-bottom: 10px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            text-align: left; 
+            color: var(--text-main); 
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .selectable-item:active {
+            transform: scale(0.98);
+        }
+
+        .selectable-item.selected { 
+            border-color: var(--accent); 
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(17, 24, 39, 0.85) 100%);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .avatar-box { 
+            width: 44px; 
+            height: 44px; 
+            border-radius: 50%; 
+            background: linear-gradient(135deg, #111827, #030712); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: 800; 
+            font-size: 0.9rem;
+            color: var(--accent); 
+            border: 1px solid var(--border-accent); 
+            flex-shrink: 0; 
+        }
+
+        .input-group { margin-bottom: 14px; }
+        .input-group label { display: block; font-size: 0.75rem; color: var(--text-sub); margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-group input, .input-group select { 
+            width: 100%; 
+            background: rgba(3, 7, 18, 0.9); 
+            border: 1px solid var(--border-light); 
+            color: var(--text-main); 
+            padding: 14px 16px; 
+            border-radius: 14px; 
+            font-size: 0.92rem; 
+            outline: none;
+            transition: border-color 0.2s ease;
+            -webkit-appearance: none;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .time-slots-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .time-slot {
+            background: rgba(3, 7, 18, 0.8);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            padding: 12px 8px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .time-slot.selected {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+            font-weight: 800;
+        }
+
+        .time-slot.occupied {
+            background: rgba(17, 24, 39, 0.5);
+            color: #4b5563;
+            border-color: transparent;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(3, 7, 18, 0.5) 100%); 
+            border: 1px solid var(--border-accent); 
+            padding: 14px; 
+            border-radius: 16px; 
+            margin: 14px 0; 
+            font-size: 0.78rem; 
+            color: #d1d5db;
+            line-height: 1.5;
+        }
+
+        /* NAVEGACIÓN PASOS Y BOTONES */
+        .step-navigation-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+            padding-top: 14px;
+        }
+
+        .btn-primary { 
+            flex: 1;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+            color: #000; 
+            font-weight: 900; 
+            border: none; 
+            padding: 15px; 
+            border-radius: 18px; 
+            font-size: 0.95rem; 
+            cursor: pointer; 
+            box-shadow: 0 4px 20px var(--accent-glow);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            -webkit-appearance: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-secondary {
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            font-weight: 800;
+            padding: 15px 20px;
+            border-radius: 18px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:active, .btn-secondary:active {
+            transform: scale(0.98);
+        }
+
+        /* PANTALLA EXITO RESERVA */
+        .success-screen {
+            text-align: center;
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+        }
+
+        .success-icon-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.15);
+            border: 2px solid var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+            animation: pulseGlow 2s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { transform: scale(1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+            100% { transform: scale(1.05); box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); }
+        }
+
+        .success-icon {
+            font-size: 2.5rem;
+            color: var(--success);
+        }
+
+        .success-summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-accent);
+            border-radius: 18px;
+            padding: 16px;
+            width: 100%;
+            margin: 18px 0;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .summary-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        /* ADMIN / FINANZAS */
+        .filter-period {
+            display: flex;
+            background: rgba(3, 7, 18, 0.8);
+            padding: 4px;
+            border-radius: 14px;
+            border: 1px solid var(--border-light);
+            margin-bottom: 16px;
+        }
+
+        .period-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .period-btn.active {
+            background: var(--card-bg-solid);
+            color: var(--accent);
+            border: 1px solid var(--border-accent);
+        }
+
+        .kpi-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .kpi-card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-light); 
+            padding: 14px; 
+            border-radius: 16px; 
+            text-align: center; 
+        }
+        .kpi-card .number { font-size: 1.3rem; font-weight: 900; color: var(--accent); }
+        .kpi-card .label { font-size: 0.65rem; color: var(--text-sub); margin-top: 3px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .cita-card { 
+            background: var(--card-bg); 
+            padding: 14px; 
+            margin-bottom: 10px; 
+            border-radius: 16px; 
+            border: 1px solid var(--border-light); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        .cita-card.atendida { border-left: 4px solid var(--success); opacity: 0.5; }
+        
+        .action-btns { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+        .btn-check { background: var(--success); color: #000; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 800; font-size: 0.75rem; cursor: pointer; width: 100%; text-align: center; }
+        .btn-check.done { background: #1f2937; color: var(--text-sub); cursor: default; }
+        .btn-remind { background: rgba(56, 189, 248, 0.12); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3); padding: 7px 10px; border-radius: 10px; font-weight: 800; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; text-decoration: none; width: 100%; justify-content: center; }
+
+        .admin-modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+        .admin-box { background: #111827; padding: 28px; border-radius: 24px; width: 100%; max-width: 330px; border: 1px solid var(--border-accent); text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+        
+        .pwa-banner { background: rgba(17, 24, 39, 0.85); border: 1px solid var(--accent); border-radius: 16px; padding: 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+        .pwa-btn { background: var(--accent); color: #000; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 800; cursor: pointer; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body ontouchstart="">
+
+<div class="app-container">
+    <div class="top-nav">
+        <div class="brand-container">
+            <img src="https://i.imgur.com/QWIO228.png" id="barber-logo-img" class="brand-logo" alt="Logo">
+            <span class="brand-title" id="app-brand-title">BARBERSTYLESHOP</span>
+        </div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" id="btn-tab-cliente">Cliente</button>
+            <button class="tab-btn" id="btn-tab-admin">Barbero</button>
+        </div>
+    </div>
+
+    <div class="header-brand">
+        <h1 id="app-header-title">Reserva tu Cita</h1>
+        <p id="app-header-address">📍 Carga de ubicación...</p>
+    </div>
+
+    <!-- INDICADOR DE PASOS -->
+    <div class="step-progress-bar" id="step-progress-container">
+        <div class="step-progress-fill" id="step-progress-fill"></div>
+        <div class="step-node active" id="node-step-1">1</div>
+        <div class="step-node" id="node-step-2">2</div>
+        <div class="step-node" id="node-step-3">3</div>
+        <div class="step-node" id="node-step-4">4</div>
+    </div>
+
+    <div class="content">
+        <!-- BANNER INSTALABLE PWA -->
+        <div id="pwa-install-banner" class="pwa-banner hidden">
+            <div>
+                <strong style="display:block; font-size:0.85rem; color:var(--accent);">📲 Instalar App</strong>
+                <span style="font-size:0.72rem; color:var(--text-sub);">Acceso directo en tu celular</span>
+            </div>
+            <button class="pwa-btn" id="pwa-install-btn">Instalar</button>
+        </div>
+
+        <!-- VISTA CLIENTE POR PASOS -->
+        <div id="view-cliente" style="display: flex; flex-direction: column; flex-grow: 1;">
+            
+            <!-- PASO 1: SERVICIOS -->
+            <div id="step-1" class="step-view">
+                <div class="section-title">✂️ 1. Selecciona Servicio</div>
+                <div id="services-list">
+                    <div style="text-align:center; font-size:0.8rem; color:var(--text-sub); padding:12px;">Cargando catálogo...</div>
+                </div>
+            </div>
+
+            <!-- PASO 2: BARBERO -->
+            <div id="step-2" class="step-view hidden">
+                <div class="section-title">💈 2. Selecciona Barbero</div>
+                <div id="barbers-list">
+                    <div style="text-align:center; font-size:0.8rem; color:var(--text-sub); padding:12px;">Cargando equipo...</div>
+                </div>
+            </div>
+
+            <!-- PASO 3: FECHA Y HORA -->
+            <div id="step-3" class="step-view hidden">
+                <div class="section-title">📅 3. Fecha y Hora Disponible</div>
+                <div class="input-group">
+                    <label>Día de la Cita</label>
+                    <input type="date" id="cita-fecha">
+                </div>
+
+                <div class="input-group">
+                    <label>Horarios Libres</label>
+                    <div class="time-slots-grid" id="time-slots-container">
+                        <div style="grid-column: span 3; text-align:center; font-size:0.8rem; color:var(--text-sub); padding:10px;">
+                            Selecciona una fecha arriba
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASO 4: DATOS PERSONALES -->
+            <div id="step-4" class="step-view hidden">
+                <div class="section-title">👤 4. Completa tus Datos</div>
+                <div class="input-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="cliente-nombre" placeholder="Ej: Carlos Mendoza">
+                </div>
+                <div class="input-group">
+                    <label>Teléfono Celular (WhatsApp)</label>
+                    <input type="tel" id="cliente-telefono" placeholder="Ej: 0984439103">
+                </div>
+
+                <div class="info-box">
+                    <strong style="color: var(--accent); display: block; margin-bottom: 4px;">🛡️ Reserva protegida ($2.00)</strong>
+                    Tu anticipo congelará automáticamente tu cupo en la agenda del barbero.
+                </div>
+            </div>
+
+            <!-- BOTONES DE NAVEGACIÓN PASOS -->
+            <div class="step-navigation-btns" id="step-nav-bar">
+                <button type="button" class="btn-secondary hidden" id="btn-step-prev">Atrás</button>
+                <button type="button" class="btn-primary" id="btn-step-next">Siguiente ➔</button>
+            </div>
+
+            <!-- PANTALLA EXITO DE RESERVA -->
+            <div id="step-success" class="step-view hidden success-screen">
+                <div class="success-icon-container">
+                    <span class="success-icon">✓</span>
+                </div>
+                <h2 style="font-size:1.4rem; font-weight:900; color:var(--text-main);">¡Reserva Registrada!</h2>
+                <p style="font-size:0.8rem; color:var(--text-sub); margin-top:4px;">Tu turno ha sido bloqueado en la agenda.</p>
+
+                <div class="success-summary-card" id="success-summary-card">
+                    <!-- Resumen inyectado con JS -->
+                </div>
+
+                <button type="button" class="btn-primary" id="btn-whatsapp-confirm" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    💬 Notificar a WhatsApp
+                </button>
+            </div>
+
+        </div>
+
+        <!-- VISTA BARBERO / ADMIN -->
+        <div id="view-admin" class="hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; margin-top:10px;">
+                <div>
+                    <div class="section-title" style="margin:0;">Panel Finanzas</div>
+                    <div id="logged-barber-info" style="font-size:0.9rem; color:var(--accent); font-weight:800;"></div>
+                </div>
+                <button type="button" id="btn-logout" style="background:transparent; border:none; color:var(--danger); font-size:0.8rem; font-weight:700; cursor:pointer;">Cerrar Sesión</button>
+            </div>
+
+            <div id="owner-selector-container" class="input-group hidden" style="margin-bottom: 14px;">
+                <label style="color:#818cf8; font-weight:800;">👑 Inspeccionar Barbero (Vista Dueño):</label>
+                <select id="select-view-as-owner" onchange="cambiarVistaBarberoOwner(this.value)">
+                </select>
+            </div>
+
+            <div class="filter-period">
+                <button class="period-btn active" onclick="filtrarFinanzas('hoy', event)">Hoy</button>
+                <button class="period-btn" onclick="filtrarFinanzas('semana', event)">Esta Semana</button>
+                <button class="period-btn" onclick="filtrarFinanzas('mes', event)">Este Mes</button>
+            </div>
+
+            <div class="kpi-container">
+                <div class="kpi-card">
+                    <div class="number" id="kpi-cortes">0</div>
+                    <div class="label">Atendidos</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="number" id="kpi-total">$0.00</div>
+                    <div class="label">Total Producido</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="number" id="kpi-anticipos" style="color:#38bdf8;">$0.00</div>
+                    <div class="label">Anticipos ($2)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="number" id="kpi-efectivo" style="color:var(--success);">$0.00</div>
+                    <div class="label">Cobrado en Local</div>
+                </div>
+            </div>
+
+            <div class="section-title">📋 Agenda de Citas</div>
+            <div id="citas-list">Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL LOGIN -->
+<div class="admin-modal" id="adminModal">
+    <div class="admin-box">
+        <h3 style="color:var(--accent); margin-bottom:16px; font-size:1.15rem; font-weight:800;">Acceso Personal</h3>
+        <div class="input-group">
+            <input type="email" id="email-login" placeholder="Correo electrónico" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <input type="password" id="password-login" placeholder="Contraseña" autocomplete="new-password">
+        </div>
+        <button type="button" class="btn-primary" id="btn-login-submit" style="margin-top:10px;">Ingresar</button>
+        <button type="button" id="btn-modal-cancel" style="background:transparent; border:none; color:var(--text-sub); margin-top:14px; font-size:0.8rem; cursor:pointer;">Cancelar</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://eadsscvpoasyongrogbs.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhZHNzY3Zwb2FzeW9uZ3JvZ2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NzU0MjAsImV4cCI6MjEwNDU1MTQyMH0.e14ZgYWPC317968YDk7aCyIN6Ezm-qYXc1cygiYZLDQ'; 
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+    const URL_LOGO_BARBERSTYLE = "https://i.imgur.com/QWIO228.png";
+    const URL_LOGO_PADI = "https://i.postimg.cc/fW7VKFhL/Whats-App-Image-2026-09-14-at-18-14-52.jpg";
+
+    const HORARIOS_BASE = ['09:00', '09:40', '10:20', '11:00', '11:40', '12:20', '14:00', '14:40', '15:20', '16:00', '16:40', '17:20', '18:00', '18:40', '19:20'];
+
+    const SERVICIOS_DEFAULT = {
+        'padibarberclub': [
+            { nombre: 'Corte Normal', descripcion: 'Cualquier estilo moderno', precio: 5.00 },
+            { nombre: 'Corte con Barba', descripcion: 'Corte completo + arreglo de barba', precio: 7.00 },
+            { nombre: 'Solo Barba', descripcion: 'Perfilado y toalla caliente', precio: 3.00 }
+        ],
+        'default': [
+            { nombre: 'Corte de Cabello', descripcion: 'Clásico, Fade, Navaja o Tijera', precio: 5.00 },
+            { nombre: 'Combo: Corte + Barba', descripcion: 'Corte completo + Delineado de barba', precio: 6.50 },
+            { nombre: 'Combo VIP Complete', descripcion: 'Corte + Barba + Perfilado de cejas', precio: 8.00 },
+            { nombre: 'Barba / Perfilado', descripcion: 'Rasurada tradicional o con diseño', precio: 2.00 },
+            { nombre: 'Tinturado / Mechas', descripcion: 'Tinte negro, barba o mechas', precio: 5.00 }
+        ]
+    };
+
+    let barberiaActual = null;
+    let listaBarberosDB = [];
+    let selectedService = { name: 'Corte de Cabello', price: 5.00 };
+    let selectedBarberObj = null;
+    let selectedHora = '';
+    let currentStep = 1;
+
+    let currentBarberLogin = null;
+    let inspectedBarberId = null;
+    let cacheCitasBarbero = [];
+    let deferredPrompt = null;
+    let whatsappRedirectUrl = '';
+
+    if ('serviceWorker' in navigator) {
+        const swCode = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('activate', (e) => self.clients.claim());
+            self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));
+        `;
+        const blob = new Blob([swCode], { type: 'text/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log('SW Error:', err));
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('hidden');
+    });
+
+    document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                document.getElementById('pwa-install-banner').classList.add('hidden');
+            }
+            deferredPrompt = null;
+        }
+    });
+
+    function generarManifiestoPWA(logoUrl) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const slug = urlParams.get('b') || 'barberstyleshop';
+        const nombreApp = slug === 'padibarberclub' ? 'Padi Barber Club' : 'BARBERSTYLESHOP';
+
+        const manifest = {
+            "name": nombreApp,
+            "short_name": nombreApp,
+            "start_url": window.location.href,
+            "display": "standalone",
+            "background_color": "#030712",
+            "theme_color": "#030712",
+            "icons": [
+                {
+                    "src": logoUrl,
+                    "sizes": "192x192",
+                    "type": "image/jpeg"
+                },
+                {
+                    "src": logoUrl,
+                    "sizes": "512x512",
+                    "type": "image/jpeg",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(blob));
+    }
+
+    function getFechaLocalEcuador() {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const inputFecha = document.getElementById('cita-fecha');
+        const hoyStr = getFechaLocalEcuador();
+        inputFecha.value = hoyStr;
+        inputFecha.min = hoyStr;
+
+        document.body.addEventListener('click', (e) => {
+            const sItem = e.target.closest('.service-item');
+            if (sItem) {
+                document.querySelectorAll('.service-item').forEach(i => i.classList.remove('selected'));
+                sItem.classList.add('selected');
+                selectedService = { 
+                    name: sItem.getAttribute('data-name'), 
+                    price: parseFloat(sItem.getAttribute('data-price')) 
+                };
+            }
+
+            const bItem = e.target.closest('.barber-item');
+            if (bItem) {
+                document.querySelectorAll('.barber-item').forEach(i => i.classList.remove('selected'));
+                bItem.classList.add('selected');
+                const bId = bItem.getAttribute('data-id');
+                selectedBarberObj = listaBarberosDB.find(b => b.id === bId);
+                cargarHorariosDisponibles();
+            }
+
+            const tSlot = e.target.closest('.time-slot');
+            if (tSlot && !tSlot.classList.contains('occupied')) {
+                document.querySelectorAll('.time-slot').forEach(i => i.classList.remove('selected'));
+                tSlot.classList.add('selected');
+                selectedHora = tSlot.getAttribute('data-hora');
+            }
+        });
+
+        document.getElementById('cita-fecha').addEventListener('change', cargarHorariosDisponibles);
+        document.getElementById('btn-tab-cliente').addEventListener('click', () => switchView('cliente'));
+        document.getElementById('btn-tab-admin').addEventListener('click', openAdminModal);
+        document.getElementById('btn-step-next').addEventListener('click', avanzarPaso);
+        document.getElementById('btn-step-prev').addEventListener('click', retrocederPaso);
+        document.getElementById('btn-whatsapp-confirm').addEventListener('click', () => {
+            if (whatsappRedirectUrl) window.location.href = whatsappRedirectUrl;
+        });
+
+        document.getElementById('btn-login-submit').addEventListener('click', loginBarbero);
+        document.getElementById('btn-modal-cancel').addEventListener('click', closeAdminModal);
+        document.getElementById('btn-logout').addEventListener('click', logoutAdmin);
+
+        await cargarBarberiaYBarberos();
+        actualizarUISteps();
+    });
+
+    function actualizarUISteps() {
+        // Mostrar / ocultar vistas de pasos
+        for (let i = 1; i <= 4; i++) {
+            const stepEl = document.getElementById(`step-${i}`);
+            if (stepEl) {
+                stepEl.classList.toggle('hidden', i !== currentStep);
+            }
+
+            const nodeEl = document.getElementById(`node-step-${i}`);
+            if (nodeEl) {
+                nodeEl.classList.remove('active', 'completed');
+                if (i === currentStep) nodeEl.classList.add('active');
+                else if (i < currentStep) nodeEl.classList.add('completed');
+            }
+        }
+
+        // Ajustar barra de progreso
+        const fillEl = document.getElementById('step-progress-fill');
+        const percentage = ((currentStep - 1) / 3) * 100;
+        fillEl.style.width = `${percentage}%`;
+
+        // Ajustar botones de navegación
+        const btnPrev = document.getElementById('btn-step-prev');
+        const btnNext = document.getElementById('btn-step-next');
+
+        btnPrev.classList.toggle('hidden', currentStep === 1);
+
+        if (currentStep === 4) {
+            btnNext.textContent = 'Reservar Turno ($2.00)';
+        } else {
+            btnNext.textContent = 'Siguiente ➔';
+        }
+    }
+
+    function avanzarPaso() {
+        if (currentStep === 1) {
+            if (!selectedService.name) {
+                alert('Por favor selecciona un servicio.');
+                return;
+            }
+            currentStep = 2;
+        } else if (currentStep === 2) {
+            if (!selectedBarberObj) {
+                alert('Por favor selecciona un barbero.');
+                return;
+            }
+            currentStep = 3;
+        } else if (currentStep === 3) {
+            const fecha = document.getElementById('cita-fecha').value;
+            if (!fecha || !selectedHora) {
+                alert('Por favor selecciona la fecha y un horario disponible.');
+                return;
+            }
+            currentStep = 4;
+        } else if (currentStep === 4) {
+            confirmarReserva();
+            return;
+        }
+        actualizarUISteps();
+    }
+
+    function retrocederPaso() {
+        if (currentStep > 1) {
+            currentStep--;
+            actualizarUISteps();
+        }
+    }
+
+    async function cargarBarberiaYBarberos() {
+        if (!supabaseClient) return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let slugUrl = urlParams.get('b') || 'barberstyleshop';
+
+        let { data: bData } = await supabaseClient
+            .from('barberias')
+            .select('id, nombre, direccion, slug, logo_url')
+            .eq('slug', slugUrl)
+            .maybeSingle();
+
+        if (!bData) {
+            const { data: firstB } = await supabaseClient.from('barberias').select('id, nombre, direccion, slug, logo_url').limit(1).maybeSingle();
+            bData = firstB;
+        }
+
+        if (!bData) {
+            document.getElementById('barbers-list').innerHTML = `<p style="font-size:0.8rem; color:var(--text-sub); text-align:center;">Barbería no encontrada.</p>`;
+            return;
+        }
+
+        barberiaActual = bData;
+        document.getElementById('app-brand-title').innerText = bData.nombre;
+        document.getElementById('app-header-address').innerText = `📍 ${bData.direccion}`;
+        
+        let finalLogo = URL_LOGO_BARBERSTYLE;
+        if (bData.slug === 'padibarberclub') {
+            finalLogo = URL_LOGO_PADI;
+        } else if (bData.logo_url) {
+            finalLogo = bData.logo_url;
+        }
+
+        document.getElementById('barber-logo-img').src = finalLogo;
+        document.getElementById('pwa-apple-icon').href = finalLogo;
+        generarManifiestoPWA(finalLogo);
+
+        let serviciosParaMostrar = [];
+        const { data: serviciosData } = await supabaseClient
+            .from('servicios')
+            .select('nombre, descripcion, precio')
+            .eq('barberia_id', barberiaActual.id);
+
+        if (serviciosData && serviciosData.length > 0) {
+            serviciosParaMostrar = serviciosData;
+        } else {
+            serviciosParaMostrar = SERVICIOS_DEFAULT[barberiaActual.slug] || SERVICIOS_DEFAULT['default'];
+        }
+
+        selectedService = { name: serviciosParaMostrar[0].nombre, price: parseFloat(serviciosParaMostrar[0].precio) };
+        const containerServicios = document.getElementById('services-list');
+        containerServicios.innerHTML = serviciosParaMostrar.map((s, idx) => `
+            <div class="selectable-item service-item ${idx === 0 ? 'selected' : ''}" data-name="${s.nombre}" data-price="${s.precio}">
+                <div>
+                    <div style="font-weight:800; font-size:0.9rem;">${s.nombre}</div>
+                    <div style="font-size:0.75rem; color:var(--text-sub); margin-top:2px;">${s.descripcion || ''}</div>
+                </div>
+                <div style="margin-left:auto; font-weight:900; color:var(--accent); font-size:1.05rem;">$${parseFloat(s.precio).toFixed(2)}</div>
+            </div>
+        `).join('');
+
+        const { data: barberosData } = await supabaseClient
+            .from('barberos')
+            .select('id, nombre, rol, telefono, barberia_id')
+            .eq('barberia_id', barberiaActual.id);
+
+        if (barberosData && barberosData.length > 0) {
+            listaBarberosDB = barberosData;
+            selectedBarberObj = listaBarberosDB[0];
+
+            const containerBarberos = document.getElementById('barbers-list');
+            containerBarberos.innerHTML = listaBarberosDB.map((b, idx) => `
+                <div class="selectable-item barber-item ${idx === 0 ? 'selected' : ''}" data-id="${b.id}">
+                    <div class="avatar-box">${b.nombre.split(' ').map(n=>n[0]).join('')}</div>
+                    <div>
+                        <div style="font-weight:800; font-size:0.9rem;">${b.nombre}</div>
+                        <div style="font-size:0.75rem; color:var(--text-sub);">${b.rol || 'Barbero'}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            const selectOwner = document.getElementById('select-view-as-owner');
+            selectOwner.innerHTML = listaBarberosDB.map(b => `
+                <option value="${b.id}">Ver agenda de ${b.nombre}</option>
+            `).join('');
+        } else {
+            document.getElementById('barbers-list').innerHTML = `<p style="font-size:0.8rem; color:var(--text-sub); text-align:center;">No hay barberos asignados.</p>`;
+        }
+
+        cargarHorariosDisponibles();
+    }
+
+    async function cargarHorariosDisponibles() {
+        const container = document.getElementById('time-slots-container');
+        const fecha = document.getElementById('cita-fecha').value;
+        if (!fecha || !selectedBarberObj) return;
+
+        container.innerHTML = '<div style="grid-column: span 3; text-align:center; font-size:0.8rem; color:var(--text-sub); padding:10px;">Consultando disponibilidad...</div>';
+        selectedHora = '';
+
+        let ocupados = [];
+        if (supabaseClient) {
+            const { data } = await supabaseClient
+                .from('citas')
+                .select('hora')
+                .eq('barbero_id', selectedBarberObj.id)
+                .eq('fecha', fecha)
+                .neq('estado', 'cancelada');
+            
+            if (data) ocupados = data.map(c => c.hora.substring(0, 5));
+        }
+
+        container.innerHTML = HORARIOS_BASE.map(h => {
+            const esOcupado = ocupados.includes(h);
+            return `<div class="time-slot ${esOcupado ? 'occupied' : ''}" data-hora="${h}">${h} ${esOcupado ? '✖' : ''}</div>`;
+        }).join('');
+    }
+
+    async function confirmarReserva() {
+        const fecha = document.getElementById('cita-fecha').value;
+        const nombre = document.getElementById('cliente-nombre').value.trim();
+        const telefono = document.getElementById('cliente-telefono').value.trim();
+
+        if (!fecha || !selectedHora || !nombre || !telefono || !selectedBarberObj) {
+            alert('Por favor completa todos tus datos personales.');
+            return;
+        }
+
+        const btnConfirmar = document.getElementById('btn-step-next');
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = 'Guardando cita...';
+
+        const { data: citasExistentes } = await supabaseClient
+            .from('citas')
+            .select('id')
+            .eq('barbero_id', selectedBarberObj.id)
+            .eq('fecha', fecha)
+            .eq('hora', selectedHora)
+            .neq('estado', 'cancelada');
+
+        if (citasExistentes && citasExistentes.length > 0) {
+            alert('⚠️ Lo sentimos, esta hora acaba de ser reservada por otro cliente. Por favor regresa al paso 3 y elige otro horario.');
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = 'Reservar Turno ($2.00)';
+            currentStep = 3;
+            actualizarUISteps();
+            cargarHorariosDisponibles();
+            return;
+        }
+
+        const { error } = await supabaseClient.from('citas').insert([{
+            cliente_nombre: nombre,
+            cliente_telefono: telefono,
+            servicio: selectedService.name,
+            precio: selectedService.price,
+            barbero_nombre: selectedBarberObj.nombre,
+            barbero_id: selectedBarberObj.id,
+            barberia_id: selectedBarberObj.barberia_id,
+            fecha: fecha,
+            hora: selectedHora,
+            anticipo_pagado: 2.00,
+            estado: 'pendiente'
+        }]);
+
+        if (error) {
+            alert('Hubo un problema al congelar tu horario. Inténtalo de nuevo.');
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = 'Reservar Turno ($2.00)';
+            return;
+        }
+
+        let numTelefonoWA = selectedBarberObj.telefono || '593984439103';
+        numTelefonoWA = numTelefonoWA.replace(/\D/g, '');
+        if (numTelefonoWA.startsWith('0')) numTelefonoWA = '593' + numTelefonoWA.substring(1);
+
+        const mensajeWA = `¡Hola ${selectedBarberObj.nombre}! ✂️ Deseo agendar una cita para *${selectedService.name}* ($${selectedService.price.toFixed(2)}) el día *${fecha}* a las *${selectedHora}*.\n\n👤 *Cliente:* ${nombre}\n📱 *Teléfono:* ${telefono}\n💵 *Anticipo:* $2.00\n\nPor favor, confirmarme si la hora está disponible.`;
+        whatsappRedirectUrl = `https://api.whatsapp.com/send?phone=${numTelefonoWA}&text=${encodeURIComponent(mensajeWA)}`;
+
+        // MOSTRAR PANTALLA EXITO
+        for (let i = 1; i <= 4; i++) {
+            document.getElementById(`step-${i}`).classList.add('hidden');
+        }
+        document.getElementById('step-nav-bar').classList.add('hidden');
+        document.getElementById('step-progress-container').classList.add('hidden');
+
+        const summaryCard = document.getElementById('success-summary-card');
+        summaryCard.innerHTML = `
+            <div class="summary-row"><span>👤 Cliente:</span><strong>${nombre}</strong></div>
+            <div class="summary-row"><span>✂️ Servicio:</span><strong>${selectedService.name} ($${selectedService.price.toFixed(2)})</strong></div>
+            <div class="summary-row"><span>💈 Barbero:</span><strong>${selectedBarberObj.nombre}</strong></div>
+            <div class="summary-row"><span>📅 Fecha / Hora:</span><strong style="color:var(--accent);">${fecha} - ${selectedHora}</strong></div>
+            <div class="summary-row"><span>💵 Anticipo:</span><strong style="color:var(--success);">$2.00</strong></div>
+        `;
+
+        document.getElementById('step-success').classList.remove('hidden');
+    }
+
+    function openAdminModal() { document.getElementById('adminModal').style.display = 'flex'; }
+    function closeAdminModal() { 
+        document.getElementById('adminModal').style.display = 'none'; 
+        document.getElementById('email-login').value = '';
+        document.getElementById('password-login').value = '';
+    }
+
+    async function loginBarbero() {
+        if (!supabaseClient) {
+            alert('No se pudo conectar con el sistema de acceso.');
+            return;
+        }
+
+        const email = document.getElementById('email-login').value.trim();
+        const password = document.getElementById('password-login').value;
+
+        if (!email || !password) {
+            alert('Ingresa tu correo y contraseña.');
+            return;
+        }
+
+        const botonLogin = document.getElementById('btn-login-submit');
+        botonLogin.disabled = true;
+        botonLogin.textContent = 'Ingresar...';
+
+        const { data: authData, error: authError } =
+            await supabaseClient.auth.signInWithPassword({ email, password });
+
+        if (authError || !authData.user) {
+            console.error('Error de inicio de sesión:', authError);
+            alert('No se pudo iniciar sesión: ' + (authError?.message || 'credenciales incorrectas'));
+            botonLogin.disabled = false;
+            botonLogin.textContent = 'Ingresar';
+            return;
+        }
+
+        const { data: barberoEncontrado, error: barberError } =
+            await supabaseClient
+                .from('barberos')
+                .select('id,nombre,barberia_id,es_administrador,rol')
+                .eq('usuario_id', authData.user.id)
+                .maybeSingle();
+
+        if (barberError || !barberoEncontrado) {
+            await supabaseClient.auth.signOut();
+            console.error('Error buscando barbero:', barberError);
+            alert('El usuario inició sesión, pero no está vinculado a un barbero.');
+            botonLogin.disabled = false;
+            botonLogin.textContent = 'Ingresar';
+            return;
+        }
+
+        currentBarberLogin = barberoEncontrado;
+        inspectedBarberId = barberoEncontrado.id;
+        closeAdminModal();
+        switchView('admin');
+
+        const ownerContainer = document.getElementById('owner-selector-container');
+        const infoBox = document.getElementById('logged-barber-info');
+
+        infoBox.innerText = barberoEncontrado.nombre;
+
+        if (barberoEncontrado.es_administrador === true) {
+            ownerContainer.classList.remove('hidden');
+            document.getElementById('select-view-as-owner').value = barberoEncontrado.id;
+        } else {
+            ownerContainer.classList.add('hidden');
+        }
+
+        await cargarCitasAdmin(inspectedBarberId);
+        botonLogin.disabled = false;
+        botonLogin.textContent = 'Ingresar';
+    }
+
+    function cambiarVistaBarberoOwner(idNuevo) {
+        inspectedBarberId = idNuevo;
+        cargarCitasAdmin(inspectedBarberId);
+    }
+
+    async function cargarCitasAdmin(barberoId) {
+        if (!supabaseClient || !currentBarberLogin) return;
+
+        let data = null;
+        let error = null;
+
+        if (currentBarberLogin.es_administrador === true && barberoId !== currentBarberLogin.id) {
+            const rpc = await supabaseClient.rpc('obtener_agenda_admin', { barber_id: barberoId });
+            data = rpc.data;
+            error = rpc.error;
+        } else {
+            const result = await supabaseClient
+                .from('citas')
+                .select('*')
+                .eq('barbero_id', barberoId);
+            data = result.data;
+            error = result.error;
+        }
+
+        if (error) {
+            console.error(error);
+            alert('No se pudo cargar la agenda.');
+            cacheCitasBarbero = [];
+        } else {
+            cacheCitasBarbero = data || [];
+        }
+
+        filtrarFinanzas('hoy');
+    }
+
+    function filtrarFinanzas(periodo, evt) {
+        if (evt && evt.target) {
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            evt.target.classList.add('active');
+        }
+
+        const hoyStr = getFechaLocalEcuador();
+
+        let filtradas = cacheCitasBarbero.filter(c => {
+            const fechaCita = new Date(c.fecha + 'T00:00:00');
+            if (periodo === 'hoy') return c.fecha === hoyStr;
+            if (periodo === 'semana') {
+                const haceUnaSemana = new Date();
+                haceUnaSemana.setDate(haceUnaSemana.getDate() - 7);
+                return fechaCita >= haceUnaSemana;
+            }
+            if (periodo === 'mes') {
+                const actual = new Date();
+                return fechaCita.getMonth() === actual.getMonth() && fechaCita.getFullYear() === actual.getFullYear();
+            }
+            return true;
+        });
+
+        const container = document.getElementById('citas-list');
+        if (filtradas.length === 0) {
+            container.innerHTML = `<p style="color:var(--text-sub); font-size:0.85rem; margin-top:10px;">No hay registros en este período.</p>`;
+            actualizarKPIs(0, 0, 0, 0);
+            return;
+        }
+
+        let atendidosCount = 0;
+        let totalDinero = 0;
+        let totalAnticipos = 0;
+
+        container.innerHTML = filtradas.map(c => {
+            const esAtendida = c.estado === 'atendida';
+            if (esAtendida) {
+                atendidosCount++;
+                totalDinero += parseFloat(c.precio || 0);
+                totalAnticipos += parseFloat(c.anticipo_pagado || 2.00);
+            }
+
+            const puedeVerCliente = !(currentBarberLogin?.es_administrador === true && c.barbero_id !== currentBarberLogin.id);
+
+            let acciones = '';
+            if (puedeVerCliente) {
+                let telLimpio = (c.cliente_telefono || '').replace(/\D/g, '');
+                if (telLimpio.startsWith('0')) telLimpio = '593' + telLimpio.substring(1);
+                if (!telLimpio.startsWith('593')) telLimpio = '593' + telLimpio;
+                const msgRecordatorio = encodeURIComponent(`¡Hola ${c.cliente_nombre}! 💈 Te saludamos. Te recordamos tu cita reservada para hoy para *${c.servicio}* a las *${c.hora}*.\n\nPor favor confírmanos tu asistencia. ¡Te esperamos! ✂️`);
+                const urlWA = `https://api.whatsapp.com/send?phone=${telLimpio}&text=${msgRecordatorio}`;
+
+                acciones = esAtendida
+                    ? `<button class="btn-check done" disabled>✓ Listo</button>`
+                    : `<a href="${urlWA}" target="_blank" class="btn-remind">📲 Recordar</a>
+                       <button class="btn-check" onclick="marcarComoAtendida('${c.id}')">✓ Atender</button>`;
+            } else {
+                acciones = `<span style="font-size:0.72rem;color:var(--text-sub);">Solo consulta</span>`;
+            }
+
+            const clienteTexto = puedeVerCliente
+                ? `<strong style="font-size:0.9rem;">${c.cliente_nombre}</strong>`
+                : `<strong style="font-size:0.9rem;">Cliente reservado</strong>`;
+
+            return `
+                <div class="cita-card ${esAtendida ? 'atendida' : ''}">
+                    <div>
+                        ${clienteTexto}
+                        <div style="font-size:0.75rem; color:var(--text-sub); margin-top:2px;">✂️ ${c.servicio} ($${parseFloat(c.precio).toFixed(2)})</div>
+                        <div style="font-size:0.75rem; color:var(--accent); margin-top:2px; font-weight:700;">📅 ${c.fecha} - ⏰ ${c.hora}</div>
+                    </div>
+                    <div class="action-btns">${acciones}</div>
+                </div>
+            `;
+        }).join('');
+
+        actualizarKPIs(atendidosCount, totalDinero, totalAnticipos, totalDinero - totalAnticipos);
+    }
+
+    async function marcarComoAtendida(citaId) {
+        if (!supabaseClient || !currentBarberLogin) return;
+
+        if (currentBarberLogin.es_administrador === true && inspectedBarberId !== currentBarberLogin.id) {
+            alert('Solo el barbero asignado puede marcar esta cita como atendida.');
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('citas')
+            .update({ estado: 'atendida' })
+            .eq('id', citaId);
+
+        if (error) {
+            alert('No se pudo actualizar la cita.');
+            return;
+        }
+
+        await cargarCitasAdmin(inspectedBarberId);
+    }
+
+    function actualizarKPIs(count, total, anticipos, efectivo) {
+        document.getElementById('kpi-cortes').innerText = count;
+        document.getElementById('kpi-total').innerText = `$${total.toFixed(2)}`;
+        document.getElementById('kpi-anticipos').innerText = `$${anticipos.toFixed(2)}`;
+        document.getElementById('kpi-efectivo').innerText = `$${efectivo.toFixed(2)}`;
+    }
+
+    function switchView(view) {
+        document.getElementById('btn-tab-cliente').className = `tab-btn ${view === 'cliente' ? 'active' : ''}`;
+        document.getElementById('btn-tab-admin').className = `tab-btn ${view === 'admin' ? 'active' : ''}`;
+        document.getElementById('view-cliente').classList.toggle('hidden', view !== 'cliente');
+        document.getElementById('view-admin').classList.toggle('hidden', view !== 'admin');
+    }
+
+    async function logoutAdmin() {
+        if (supabaseClient) await supabaseClient.auth.signOut();
+        currentBarberLogin = null;
+        inspectedBarberId = null;
+        cacheCitasBarbero = [];
+        
+        document.getElementById('logged-barber-info').innerText = '';
+        document.getElementById('owner-selector-container').classList.add('hidden');
+        document.getElementById('citas-list').innerHTML = 'Cargando...';
+        document.getElementById('email-login').value = '';
+        document.getElementById('password-login').value = '';
+        actualizarKPIs(0, 0, 0, 0);
+        
+        switchView('cliente');
+    }
+</script>
+</body>
+</html>
